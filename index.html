@@ -174,7 +174,10 @@ function showMsg(){
 function start(){ov.classList.remove('intro-screen');score=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
 // Cinematic birthday title screen
 function setup(){
-  stopMusic(); state='setup'; ov.classList.add('intro-screen'); ov.style.display='flex';
+  if (typeof stopMusic === 'function') stopMusic();
+  state = 'setup';
+  ov.classList.add('intro-screen');
+  ov.style.display = 'flex';
   ov.innerHTML='<div class="intro-kicker">✦ A SPECIAL BIRTHDAY EDITION ✦</div><h2 class="intro-title">EDDIE-MAN</h2><p class="intro-sub">BIRTHDAY QUEST</p><p class="intro-copy">A game made exclusively for Eddie.<br>Collect the dots. Dodge the ghosts.<br>Find the legendary Hawaiian pizza.</p><button id="go" class="intro-start" type="button">▶ START ADVENTURE</button><p class="intro-footer">PLAYER 1: EDDIE · 10 LEVELS · 3 LIVES</p>';
   const startButton=document.getElementById('go'); if(startButton) startButton.addEventListener('click',start,{once:true});
 }
