@@ -70,8 +70,23 @@ const levelTunes=[
 ];
 cv.width=cv.height=300;
 const open=(c,r)=>grid[r]&&grid[r][c]!=='#'&&grid[r][c]!==undefined;
-function newLevel(){grid=genMap(level);dots=0;grid.forEach(r=>r.forEach(c=>{if(c==='.'||c==='o')dots++}));placePizza();resetPos()}
+function newLevel(){
+  grid = genMap(level);
+  dots = 0;
 
+  grid.forEach(r => r.forEach(c => {
+    if(c === '.' || c === 'o') dots++;
+  }));
+
+  // Every level starts with 3 lives and a fresh pizza.
+  lives = 3;
+  pizzaCollected = false;
+  pizzaToast = 0;
+
+  placePizza();
+  resetPos();
+  hearts();
+}
 function placePizza(){
   if(pizzaCollected || level !== 1) return;
 
