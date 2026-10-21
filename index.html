@@ -71,19 +71,65 @@ const levelTunes=[
 cv.width=cv.height=300;
 const open=(c,r)=>grid[r]&&grid[r][c]!=='#'&&grid[r][c]!==undefined;
 function newLevel(){grid=genMap(level);dots=0;grid.forEach(r=>r.forEach(c=>{if(c==='.'||c==='o')dots++}));placePizza();resetPos()}
+
 function placePizza(){
-  if(pizzaCollected||level!==1)return;
-  let best=null,bestD=Infinity;
-  for(let r=2;r<H-2;r++)for(let c=2;c<W-2;c++){
-    if(grid[r][c]!=='.')continue;
-    const d=(c-7)**2+(r-7)**2;
-    if(d<bestD){bestD=d;best={c,r}}
+  if(pizzaCollected || level !== 1) return;
+
+  let best = null;
+  let bestD = Infinity;
+
+  for(let r = 2; r < H - 2; r++){
+    for(let c = 2; c < W - 2; c++){
+      if(grid[r][c] !== '.') continue;
+
+      const d = (c - 7) ** 2 + (r - 7) ** 2;
+
+      if(d < bestD){
+        bestD = d;
+        best = {c, r};
+      }
+    }
   }
-  if(best)grid[best.r][best.c]='p';
+
+  if(best){
+    grid[best.r][best.c] = 'p';
+    dots--; // Pizza replaces a regular dot; it isn't required to finish the level.
+  }
 }
 function resetPos(){P={c:7,r:11,dx:0,dy:0,t:0,want:[0,0],m:0};G=GS.map((c,i)=>({id:i+1,c,r:7,dx:0,dy:0,t:0,delay:1+i*2,out:false}));fright=0}
 let AC,wk=0;function beep(f,d,t,v,f2){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const n=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t||'square';o.frequency.setValueAtTime(f,n);if(f2)o.frequency.linearRampToValueAtTime(f2,n+d);g.gain.setValueAtTime(v||.05,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(n+d)}catch(e){}}
-function eat(c,r){const v=grid[r][c];if(v==='.'){grid[r][c]=' ';dots--;score+=10;wk=!wk;beep(wk?260:340,.05)}else if(v==='o'){grid[r][c]=' ';dots--;score+=50;beep(200,.4,'square',.06,900);fright=Math.max(2.5,6.5-level*.4)}}
+function eat(c, r){
+  const v = grid[r][c];
+
+  if(v === '.'){
+    grid[r][c] = ' ';
+    dots--;
+    score += 10;
+    wk = !wk;
+    beep(wk ? 260 : 340, .05);
+
+  } else if(v === 'o'){
+    grid[r][c] = ' ';
+    dots--;
+    score += 50;
+    beep(200, .4, 'square', .06, 900);
+    fright = Math.max(2.5, 6.5 - level * .4);
+
+  } else if(v === 'p' && !pizzaCollected){
+    grid[r][c] = ' ';
+    pizzaCollected = true;
+
+    lives += 3;
+    hearts();
+
+    pizzaToast = 3;
+    score += 100;
+
+    beep(523, .12, 'square', .06);
+    setTimeout(() => beep(659, .12, 'square', .06), 130);
+    setTimeout(() => beep(784, .2, 'square', .06), 260);
+  }
+}
 function adv(e,s,arrive){
   if(!e.dx&&!e.dy){arrive(e);if(!e.dx&&!e.dy)return}
   e.t+=s;
