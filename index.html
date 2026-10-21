@@ -14,6 +14,14 @@ canvas{display:block;width:100%;height:auto;box-sizing:border-box;background:#00
 #wrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 3px)}
 #ov{position:absolute;inset:4px;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;overflow:auto;z-index:2}
 #ov h2{margin:6px 0;color:var(--ac);font-size:14px;line-height:1.5}
+#ov.intro-screen{inset:4px;background:radial-gradient(ellipse at 50% 35%,rgba(19,34,113,.96),rgba(0,0,0,.98) 72%);border:2px solid #2121ff;box-sizing:border-box}
+.intro-kicker{color:#69e6ff;font-size:8px;line-height:1.8;letter-spacing:1px;margin-bottom:10px}
+#ov .intro-title{font-size:clamp(21px,7vw,31px);line-height:1.45;color:#ffd400;text-shadow:3px 3px #f22,6px 6px #6714a8;margin:4px 0}
+#ov .intro-sub{font-size:clamp(10px,3vw,13px);letter-spacing:2px;color:#55ddff;margin:2px 0 16px}
+#ov .intro-copy{font-size:clamp(8px,2.5vw,10px);line-height:2.1;max-width:310px;color:#fff;margin:8px auto 14px}
+#ov .intro-footer{font-size:7px;color:#b5b8ff;line-height:1.8;margin-top:14px}
+#ov #go.intro-start{border:2px solid #fff04a;outline:2px solid #ff4b4b;outline-offset:3px;background:#ffd400;color:#100b24;font-size:clamp(9px,2.7vw,11px);padding:14px 12px;max-width:100%;animation:buttonPulse 1.4s ease-in-out infinite}
+@keyframes buttonPulse{50%{filter:brightness(1.22);transform:scale(1.025)}}
 #ov p{margin:6px 0;font-size:9px;line-height:1.7}
 button{font-family:inherit;background:var(--ac);color:#000;border:0;border-radius:0;font-size:13px;padding:12px 18px;margin-top:12px;box-shadow:4px 4px 0 #f00}
 button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #f00}
@@ -156,16 +164,20 @@ function draw(){
 function loop(t){const dt=Math.min((t-last)/1000,.05);last=t;update(dt);sc.textContent='Lv '+level+'/10  Score '+score;if(grid)draw();requestAnimationFrame(loop)}
 function hearts(){document.getElementById('lv').textContent='❤️'.repeat(Math.max(lives,0))}
 function showMsg(){
-  hearts();ov.style.display='flex';
+  ov.classList.remove('intro-screen');hearts();ov.style.display='flex';
   if(state==='clear'){ov.innerHTML=`<h2>Level ${level} clear! 🎉</h2><p>+1 life. Ghosts get faster...</p><button id="go">Level ${level+1}</button>`;go.onclick=()=>{level++;lives=Math.min(lives+1,5);hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}}
   else if(state==='dead'&&lives>0){ov.innerHTML=`<h2>Caught by ${killer}! 😱</h2><p>${lives} ${lives>1?'lives':'life'} left</p><button id="go">Try again</button>`;
     go.onclick=()=>{ov.style.display='none';resetPos();state='ready';startMusicForLevel(level)}}
   else if(state==='dead'){state='over';ov.innerHTML=`<h2>Game over!</h2><p>${killer} got you. Happy birthday anyway, Eddie! 🎂</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
   else{ov.innerHTML=`<h2>🎉 HAPPY BIRTHDAY EDDIE! 🎉</h2><p>You beat all 10 levels and ate the whole family’s dots!</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
 }
-function start(){score=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
+function start(){ov.classList.remove('intro-screen');score=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
 // Cinematic birthday title screen
-function setup(){stopMusic();ov.innerHTML='<div class="intro-kicker">A SPECIAL BIRTHDAY EDITION</div><h2 class="intro-title">EDDIE-MAN</h2><p class="intro-sub">BIRTHDAY QUEST</p><p class="intro-copy">A game made exclusively for Eddie.<br>Collect the dots. Dodge the ghosts.<br>Find the legendary Hawaiian pizza.</p><button id="go" style="font-size:11px;padding:15px 16px">START ADVENTURE ▶</button><p class="intro-footer">PLAYER 1: EDDIE · 10 LEVELS · 3 LIVES</p>';go.onclick=start}
+function setup(){
+  stopMusic(); state='setup'; ov.classList.add('intro-screen'); ov.style.display='flex';
+  ov.innerHTML='<div class="intro-kicker">✦ A SPECIAL BIRTHDAY EDITION ✦</div><h2 class="intro-title">EDDIE-MAN</h2><p class="intro-sub">BIRTHDAY QUEST</p><p class="intro-copy">A game made exclusively for Eddie.<br>Collect the dots. Dodge the ghosts.<br>Find the legendary Hawaiian pizza.</p><button id="go" class="intro-start" type="button">▶ START ADVENTURE</button><p class="intro-footer">PLAYER 1: EDDIE · 10 LEVELS · 3 LIVES</p>';
+  const startButton=document.getElementById('go'); if(startButton) startButton.addEventListener('click',start,{once:true});
+}
 document.getElementById('musicBtn').onclick=()=>{musicOn=!musicOn;document.getElementById('musicBtn').textContent='♫ MUSIC: '+(musicOn?'ON':'OFF');if(musicOn&&state!=='setup')startMusicForLevel(level);else stopMusic()};
 function paint(cn,i){const x=cn.getContext('2d');x.clearRect(0,0,84,84);if(imgs[i])x.drawImage(imgs[i],0,0,84,84);else{x.fillStyle=CH[i].c;x.fillRect(0,0,84,84);x.fillStyle='#000';x.font='bold 44px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(CH[i].n[0],42,44)}}
 function setImg(i,url,cn,save){
