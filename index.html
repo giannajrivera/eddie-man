@@ -23,6 +23,7 @@ button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #f00}
 </style></head><body>
 <h1>EDDIE-MAN</h1>
 <div id="hud"><span id="sc">Score 0</span><span id="lv">❤️❤️❤️</span></div>
+<button id="musicBtn" type="button" aria-label="Toggle background music">♫ MUSIC: ON</button>
 <div id="wrap"><canvas id="cv"></canvas>
 <div id="ov"></div></div>
 <div id="pad"><button class="u" data-d="0,-1">▲</button><button class="l" data-d="-1,0">◀</button><button class="d" data-d="0,1">▼</button><button class="r" data-d="1,0">▶</button></div>
@@ -46,9 +47,32 @@ const CH=[{n:'Eddie',c:'#ffd400'},{n:'Mom',c:'#ff4d6d'},{n:'Dad',c:'#4dd2ff'},{n
 const DIRS=[[0,-1],[-1,0],[0,1],[1,0]];
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
 const imgs={};let grid,dots,P,G,fright,score,lives,state='setup',last=0,killer='',level=1;
+let pizzaCollected=false,pizzaToast=0,musicOn=true,musicTimer=null,musicStep=0;
+const levelTunes=[
+ [523,659,784,659,587,698,880,698,523,659,784,988,880,784,659,587],
+ [392,494,587,494,440,523,659,523,392,494,587,784,659,587,494,440],
+ [440,554,659,554,494,587,740,587,440,554,659,880,740,659,554,494],
+ [587,698,880,698,659,784,988,784,587,698,880,1047,988,880,784,659],
+ [330,392,494,392,349,440,523,440,330,392,494,659,523,494,392,349],
+ [523,784,659,880,784,659,587,784,523,784,659,988,880,784,659,523],
+ [392,587,494,659,587,494,440,587,392,587,494,784,659,587,494,392],
+ [440,659,554,740,659,554,494,659,440,659,554,880,740,659,554,440],
+ [349,440,523,659,523,440,392,494,587,784,587,494,440,523,659,880],
+ [523,659,784,1047,988,784,880,659,587,784,988,1175,1047,880,784,523]
+];
 cv.width=cv.height=300;
 const open=(c,r)=>grid[r]&&grid[r][c]!=='#'&&grid[r][c]!==undefined;
-function newLevel(){grid=genMap(level);dots=0;grid.forEach(r=>r.forEach(c=>{if(c==='.'||c==='o')dots++}));resetPos()}
+function newLevel(){grid=genMap(level);dots=0;grid.forEach(r=>r.forEach(c=>{if(c==='.'||c==='o')dots++}));placePizza();resetPos()}
+function placePizza(){
+  if(pizzaCollected||level!==1)return;
+  let best=null,bestD=Infinity;
+  for(let r=2;r<H-2;r++)for(let c=2;c<W-2;c++){
+    if(grid[r][c]!=='.')continue;
+    const d=(c-7)**2+(r-7)**2;
+    if(d<bestD){bestD=d;best={c,r}}
+  }
+  if(best)grid[best.r][best.c]='p';
+}
 function resetPos(){P={c:7,r:11,dx:0,dy:0,t:0,want:[0,0],m:0};G=GS.map((c,i)=>({id:i+1,c,r:7,dx:0,dy:0,t:0,delay:1+i*2,out:false}));fright=0}
 let AC,wk=0;function beep(f,d,t,v,f2){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const n=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t||'square';o.frequency.setValueAtTime(f,n);if(f2)o.frequency.linearRampToValueAtTime(f2,n+d);g.gain.setValueAtTime(v||.05,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(n+d)}catch(e){}}
 function eat(c,r){const v=grid[r][c];if(v==='.'){grid[r][c]=' ';dots--;score+=10;wk=!wk;beep(wk?260:340,.05)}else if(v==='o'){grid[r][c]=' ';dots--;score+=50;beep(200,.4,'square',.06,900);fright=Math.max(2.5,6.5-level*.4)}}
@@ -84,6 +108,7 @@ const pos=e=>[e.c+e.dx*e.t,e.r+e.dy*e.t];
 function update(dt){
   if(state!=='play')return;
   if(fright>0)fright-=dt;
+  if(pizzaToast>0)pizzaToast=Math.max(0,pizzaToast-dt);
   adv(P,5.5*dt,pArrive);P.m+=dt*10;
   G.forEach(e=>{
     if(!e.out){e.delay-=dt;if(e.delay<=0)e.out=true;return}
@@ -114,6 +139,7 @@ function draw(){
     if(v==='#'){ctx.fillStyle='#10107a';ctx.fillRect(x,y,s,s);ctx.strokeStyle='#3d6bff';ctx.lineWidth=2;ctx.strokeRect(x+3,y+3,s-6,s-6)}
     else if(v==='.'){ctx.fillStyle='#ffb8ae';ctx.fillRect(x+s/2-1.5,y+s/2-1.5,3,3)}
     else if(v==='o'&&bl){ctx.fillStyle='#fff';ctx.fillRect(x+s/2-4,y+s/2-4,8,8)}
+    else if(v==='p'){const cx=x+s/2,cy=y+s/2;ctx.fillStyle='#a94f18';ctx.beginPath();ctx.arc(cx,cy,s*.36,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffd447';ctx.beginPath();ctx.arc(cx,cy,s*.29,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e84b36';[[ -.22,-.08],[.12,-.2],[.2,.12],[-.12,.19]].forEach(([a,b])=>{ctx.beginPath();ctx.arc(cx+a*s,cy+b*s,s*.055,0,Math.PI*2);ctx.fill()});ctx.fillStyle='#8bc34a';[[-.08,-.18],[.22,-.02],[-.22,.1],[.04,.22]].forEach(([a,b])=>{ctx.fillRect(cx+a*s,cy+b*s,s*.09,s*.09)})}
   }
   let[px,py]=pos(P);px=(px+.5)*s;py=(py+.5)*s;const R=s*.5;
   const ang=Math.atan2(P.dy||0,P.dx||1),mo=.05+.3*Math.abs(Math.sin(P.m));
@@ -125,20 +151,22 @@ function draw(){
     const[gx,gy]=pos(e),x=(gx+.5)*s,y=(gy+.5)*s,f=fright>0,blink=f&&fright<2&&Math.floor(fright*5)%2;
     face(e.id,x,y,s*.46,f?(blink?'#fff':'#3b5bff'):CH[e.id].c,f);
   });
+  if(pizzaToast>0){ctx.fillStyle='rgba(0,0,0,.88)';ctx.fillRect(18,8,264,28);ctx.strokeStyle='#ffd400';ctx.lineWidth=2;ctx.strokeRect(18,8,264,28);ctx.fillStyle='#ffd400';ctx.font='bold 8px monospace';ctx.textAlign='center';ctx.fillText('HAWAIIAN PIZZA!  +3 LIVES 🍍',150,25)}
 }
 function loop(t){const dt=Math.min((t-last)/1000,.05);last=t;update(dt);sc.textContent='Lv '+level+'/10  Score '+score;if(grid)draw();requestAnimationFrame(loop)}
 function hearts(){document.getElementById('lv').textContent='❤️'.repeat(Math.max(lives,0))}
 function showMsg(){
   hearts();ov.style.display='flex';
-  if(state==='clear'){ov.innerHTML=`<h2>Level ${level} clear! 🎉</h2><p>+1 life. Ghosts get faster...</p><button id="go">Level ${level+1}</button>`;go.onclick=()=>{level++;lives=Math.min(lives+1,5);hearts();newLevel();ov.style.display='none';state='ready'}}
+  if(state==='clear'){ov.innerHTML=`<h2>Level ${level} clear! 🎉</h2><p>+1 life. Ghosts get faster...</p><button id="go">Level ${level+1}</button>`;go.onclick=()=>{level++;lives=Math.min(lives+1,5);hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}}
   else if(state==='dead'&&lives>0){ov.innerHTML=`<h2>Caught by ${killer}! 😱</h2><p>${lives} ${lives>1?'lives':'life'} left</p><button id="go">Try again</button>`;
-    go.onclick=()=>{ov.style.display='none';resetPos();state='ready'}}
+    go.onclick=()=>{ov.style.display='none';resetPos();state='ready';startMusicForLevel(level)}}
   else if(state==='dead'){state='over';ov.innerHTML=`<h2>Game over!</h2><p>${killer} got you. Happy birthday anyway, Eddie! 🎂</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
   else{ov.innerHTML=`<h2>🎉 HAPPY BIRTHDAY EDDIE! 🎉</h2><p>You beat all 10 levels and ate the whole family’s dots!</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
 }
-function start(){score=0;lives=3;level=1;hearts();newLevel();ov.style.display='none';state='ready'}
-// setup screen
-function setup(){ov.innerHTML='<button id="go" style="font-size:30px;padding:18px 44px">START</button>';go.onclick=start}
+function start(){score=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
+// Cinematic birthday title screen
+function setup(){stopMusic();ov.innerHTML='<div class="intro-kicker">A SPECIAL BIRTHDAY EDITION</div><h2 class="intro-title">EDDIE-MAN</h2><p class="intro-sub">BIRTHDAY QUEST</p><p class="intro-copy">A game made exclusively for Eddie.<br>Collect the dots. Dodge the ghosts.<br>Find the legendary Hawaiian pizza.</p><button id="go" style="font-size:11px;padding:15px 16px">START ADVENTURE ▶</button><p class="intro-footer">PLAYER 1: EDDIE · 10 LEVELS · 3 LIVES</p>';go.onclick=start}
+document.getElementById('musicBtn').onclick=()=>{musicOn=!musicOn;document.getElementById('musicBtn').textContent='♫ MUSIC: '+(musicOn?'ON':'OFF');if(musicOn&&state!=='setup')startMusicForLevel(level);else stopMusic()};
 function paint(cn,i){const x=cn.getContext('2d');x.clearRect(0,0,84,84);if(imgs[i])x.drawImage(imgs[i],0,0,84,84);else{x.fillStyle=CH[i].c;x.fillRect(0,0,84,84);x.fillStyle='#000';x.font='bold 44px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(CH[i].n[0],42,44)}}
 function setImg(i,url,cn,save){
   const im=new Image();im.onload=()=>{
