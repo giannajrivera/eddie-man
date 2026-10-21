@@ -98,7 +98,42 @@ function placePizza(){
 }
 function resetPos(){P={c:7,r:11,dx:0,dy:0,t:0,want:[0,0],m:0};G=GS.map((c,i)=>({id:i+1,c,r:7,dx:0,dy:0,t:0,delay:1+i*2,out:false}));fright=0}
 let AC,wk=0;function beep(f,d,t,v,f2){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const n=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t||'square';o.frequency.setValueAtTime(f,n);if(f2)o.frequency.linearRampToValueAtTime(f2,n+d);g.gain.setValueAtTime(v||.05,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(n+d)}catch(e){}}
-function eat(c, r){
+function stopMusic() {
+  if (musicTimer !== null) {
+    clearInterval(musicTimer);
+    musicTimer = null;
+  }
+}
+
+function startMusicForLevel(level) {
+  stopMusic();
+
+  if (!musicOn || state === 'setup') return;
+
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+
+    if (AC.state === 'suspended') {
+      AC.resume();
+    }
+
+    const notes = levelTunes[(level - 1) % levelTunes.length];
+    musicStep = 0;
+
+    musicTimer = setInterval(() => {
+      if (!musicOn) {
+        stopMusic();
+        return;
+      }
+
+      beep(notes[musicStep % notes.length], 0.12, 'square', 0.025);
+      musicStep++;
+    }, 180);
+  } catch (e) {
+    console.warn('Background music could not start:', e);
+  }
+}
+ function eat(c, r){
   const v = grid[r][c];
 
   if(v === '.'){
@@ -145,7 +180,14 @@ function gArrive(e){
   let o=DIRS.filter(d=>open(e.c+d[0],e.r+d[1])&&!(d[0]===-e.dx&&d[1]===-e.dy));
   if(!o.length)o=DIRS.filter(d=>open(e.c+d[0],e.r+d[1]));
   let d;
-  if(fright>0||Math.random()<(e.id===4?.5:.2))d=o[Math.floor(Math.random()*o.length)];
+  if (o.length === 0) {
+  e.dx = 0;
+  e.dy = 0;
+  return;
+}
+if (fright > 0 || Math.random() < (e.id === 4 ? 0.5 : 0.2)) {
+  d = o[Math.floor(Math.random() * o.length)];
+}
   else{
     const tx=P.c+P.dx*(e.id%2?3:0),ty=P.r+P.dy*(e.id%2?3:0);
     d=o.reduce((b,x)=>{const dd=(e.c+x[0]-tx)**2+(e.r+x[1]-ty)**2,bb=(e.c+b[0]-tx)**2+(e.r+b[1]-ty)**2;return dd<bb?x:b});
