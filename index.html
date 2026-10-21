@@ -88,7 +88,7 @@ function newLevel(){
   hearts();
 }
 function placePizza(){
-  if(pizzaCollected || level !== 1) return;
+  if(pizzaCollected) return;
 
   let best = null;
   let bestD = Infinity;
@@ -108,7 +108,7 @@ function placePizza(){
 
   if(best){
     grid[best.r][best.c] = 'p';
-    dots--; // Pizza replaces a regular dot; it isn't required to finish the level.
+    dots--;
   }
 }
 function resetPos(){P={c:7,r:11,dx:0,dy:0,t:0,want:[0,0],m:0};G=GS.map((c,i)=>({id:i+1,c,r:7,dx:0,dy:0,t:0,delay:1+i*2,out:false}));fright=0}
