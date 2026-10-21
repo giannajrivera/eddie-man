@@ -49,13 +49,15 @@ function genMap(l){
  for(let k=0;k<12+l;k++){const r=1+Math.floor(rnd()*13),c=1+Math.floor(rnd()*7);if((r+c)%2===1&&m[r][c]==='#'){m[r][c]=' ';m[r][14-c]=' '}}
  for(let r=0;r<H;r++)for(let c=0;c<W;c++)if(m[r][c]===' ')m[r][c]='.';
  [[1,1],[13,1],[1,13],[13,13]].forEach(([c,r])=>m[r][c]='o');m[11][7]=' ';
+ // Warp tunnels: middle of each edge
+ m[0][7]=' ';m[14][7]=' ';m[7][0]=' ';m[7][14]=' ';
  return m}
 const GS=[3,5,9,11];
 const CH=[{n:'Eddie',c:'#ffd400'},{n:'Mom',c:'#ff4d6d'},{n:'Dad',c:'#4dd2ff'},{n:'Tiny Tim',c:'#ffb347'},{n:'Heaven',c:'#ff8cf0'}];
 const DIRS=[[0,-1],[-1,0],[0,1],[1,0]];
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
 const imgs={};let grid,dots,P,G,fright,score,lives,state='setup',last=0,killer='',level=1;
-let pizzaCollected=false,pizzaToast=0,musicOn=true,musicTimer=null,musicStep=0;
+let levelStartScore=0,pizzaCollected=false,pizzaToast=0,musicOn=true,musicTimer=null,musicStep=0;
 
 // Separate Ghost Immunity power-up
 let ghostImmunity=0;
@@ -73,7 +75,9 @@ const levelTunes=[
  [523,659,784,1047,988,784,880,659,587,784,988,1175,1047,880,784,523]
 ];
 cv.width=cv.height=300;
-const open=(c,r)=>grid[r]&&grid[r][c]!=='#'&&grid[r][c]!==undefined;
+const wrapC=c=>((c%W)+W)%W,wrapR=r=>((r%H)+H)%H;
+const open=(c,r)=>grid[wrapR(r)][wrapC(c)]!=='#';
+const wd=(a,b,n)=>{let d=Math.abs(a-b)%n;return Math.min(d,n-d)};
 function newLevel(){
   grid = genMap(level);
   dots = 0;
@@ -221,7 +225,7 @@ function startMusicForLevel(level) {
 function adv(e,s,arrive){
   if(!e.dx&&!e.dy){arrive(e);if(!e.dx&&!e.dy)return}
   e.t+=s;
-  while(e.t>=1){e.c+=e.dx;e.r+=e.dy;e.t-=1;arrive(e,true);if(!e.dx&&!e.dy){e.t=0;break}}
+  while(e.t>=1){e.c=wrapC(e.c+e.dx);e.r=wrapR(e.r+e.dy);e.t-=1;arrive(e,true);if(!e.dx&&!e.dy){e.t=0;break}}
 }
 function pArrive(e,f){
   if(f)eat(e.c,e.r);
@@ -229,9 +233,10 @@ function pArrive(e,f){
   if((wx||wy)&&open(e.c+wx,e.r+wy)){e.dx=wx;e.dy=wy}
   else if(!open(e.c+e.dx,e.r+e.dy)){e.dx=0;e.dy=0}
 }
+const gOpen=(c,r)=>c>0&&c<W-1&&r>0&&r<H-1&&open(c,r); // ghosts can't enter the tunnels
 function gArrive(e){
-  let o=DIRS.filter(d=>open(e.c+d[0],e.r+d[1])&&!(d[0]===-e.dx&&d[1]===-e.dy));
-  if(!o.length)o=DIRS.filter(d=>open(e.c+d[0],e.r+d[1]));
+  let o=DIRS.filter(d=>gOpen(e.c+d[0],e.r+d[1])&&!(d[0]===-e.dx&&d[1]===-e.dy));
+  if(!o.length)o=DIRS.filter(d=>gOpen(e.c+d[0],e.r+d[1]));
   let d;
   if (o.length === 0) {
   e.dx = 0;
@@ -287,7 +292,7 @@ function update(dt){
 
     const[gx,gy]=pos(e);
 
-    if(Math.hypot(px-gx,py-gy)<.6){
+    if(Math.hypot(wd(px,gx,W),wd(py,gy,H))<.6){
 
       // Ghost Immunity: safe contact, no eating ghosts, no points
       if(typeof ghostImmunity!=='undefined'&&ghostImmunity>0){
@@ -325,13 +330,23 @@ function update(dt){
     showMsg();
   }
 }
-function face(i,x,y,r,ring,dim){
-  const a=Math.round(r*2),X=Math.round(x-r),Y=Math.round(y-r);
-  ctx.fillStyle=ring;ctx.fillRect(X,Y,a,a);
-  if(imgs[i])ctx.drawImage(imgs[i],X+2,Y+2,a-4,a-4);else{ctx.fillStyle=CH[i].c;ctx.fillRect(X+2,Y+2,a-4,a-4)}
-  if(dim){ctx.fillStyle='rgba(30,60,255,.5)';ctx.fillRect(X+2,Y+2,a-4,a-4)}
+function face(i,x,y,r,body,dim){
+  // Ghost silhouette: dome head, zigzag skirt, in the character's color
+  const L=x-r,R=x+r,B=y+r,T=r*.3,w=2*r/6;
+  ctx.beginPath();ctx.moveTo(L,B);ctx.lineTo(L,y);ctx.arc(x,y,r,Math.PI,0);ctx.lineTo(R,B);
+  for(let k=1;k<=6;k++)ctx.lineTo(R-k*w,k%2?B-T:B);
+  ctx.closePath();ctx.fillStyle=body;ctx.fill();
+  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.stroke();
+  // Big face of the person in the ghost's head
+  const fr=r*.66,fy=y-r*.14;
+  ctx.save();ctx.beginPath();ctx.arc(x,fy,fr,0,Math.PI*2);ctx.clip();
+  if(imgs[i])ctx.drawImage(imgs[i],x-fr,fy-fr,fr*2,fr*2);else{ctx.fillStyle=CH[i].c;ctx.fillRect(x-fr,fy-fr,fr*2,fr*2)}
+  if(dim){ctx.fillStyle='rgba(30,60,255,.35)';ctx.fillRect(x-fr,fy-fr,fr*2,fr*2)}
+  ctx.restore();
+  ctx.beginPath();ctx.arc(x,fy,fr,0,Math.PI*2);ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.stroke();
 }
 
+function copies(x,y,s){const L=W*s,M=H*s;x=((x%L)+L)%L;y=((y%M)+M)%M;const xs=[x],ys=[y];if(x<s)xs.push(x+L);if(x>L-s)xs.push(x-L);if(y<s)ys.push(y+M);if(y>M-s)ys.push(y-M);const o=[];xs.forEach(a=>ys.forEach(b=>o.push([a,b])));return o}
 function draw(){
   const s=cv.width/W;ctx.imageSmoothingEnabled=false;ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.width);
   const bl=Math.floor(performance.now()/250)%2;
@@ -386,16 +401,18 @@ function draw(){
     }
   }
 
-  let[px,py]=pos(P);px=(px+.5)*s;py=(py+.5)*s;const R=s*.5;
+  let[px0,py0]=pos(P);px0=(px0+.5)*s;py0=(py0+.5)*s;const R=s*.5;
+  for(const[px,py] of copies(px0,py0,s)){
   const ang=Math.atan2(P.dy||0,P.dx||1),mo=.05+.3*Math.abs(Math.sin(P.m));
   ctx.save();ctx.translate(px,py);ctx.rotate(ang);ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R,mo*Math.PI,(2-mo)*Math.PI);ctx.closePath();ctx.rotate(-ang);ctx.translate(-px,-py);ctx.clip();
   if(imgs[0])ctx.drawImage(imgs[0],px-R,py-R,R*2,R*2);else{ctx.fillStyle='#ffd400';ctx.fillRect(px-R,py-R,R*2,R*2)}
   ctx.restore();
   ctx.beginPath();ctx.arc(px,py,R,mo*Math.PI,(2-mo)*Math.PI);ctx.lineTo(px,py);ctx.closePath();ctx.lineWidth=2;ctx.strokeStyle='#ffd400';ctx.stroke();
+  }
 
   G.forEach(e=>{
     const[gx,gy]=pos(e),x=(gx+.5)*s,y=(gy+.5)*s,f=fright>0,blink=f&&fright<2&&Math.floor(fright*5)%2;
-    face(e.id,x,y,s*.46,f?(blink?'#fff':'#3b5bff'):CH[e.id].c,f);
+    copies(x,y,s).forEach(([cx,cy])=>face(e.id,cx,cy,s*.52,f?(blink?'#fff':'#3b5bff'):CH[e.id].c,f));
   });
 
   if(pizzaToast>0){
@@ -420,13 +437,13 @@ function loop(t){const dt=Math.min((t-last)/1000,.05);last=t;update(dt);sc.textC
 function hearts(){document.getElementById('lv').textContent='❤️'.repeat(Math.max(lives,0))}
 function showMsg(){
   ov.classList.remove('intro-screen');hearts();ov.style.display='flex';
-  if(state==='clear'){ov.innerHTML=`<h2>Level ${level} clear! 🎉</h2><p>+1 life. Ghosts get faster...</p><button id="go">Level ${level+1}</button>`;go.onclick=()=>{level++;lives=Math.min(lives+1,5);hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}}
+  if(state==='clear'){ov.innerHTML=`<h2>Level ${level} clear! 🎉</h2><p>+1 life. Ghosts get faster...</p><button id="go">Level ${level+1}</button>`;go.onclick=()=>{level++;lives=Math.min(lives+1,5);levelStartScore=score;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}}
   else if(state==='dead'&&lives>0){ov.innerHTML=`<h2>Caught by ${killer}! 😱</h2><p>${lives} ${lives>1?'lives':'life'} left</p><button id="go">Try again</button>`;
     go.onclick=()=>{ov.style.display='none';resetPos();state='ready';startMusicForLevel(level)}}
-  else if(state==='dead'){state='over';ov.innerHTML=`<h2>Game over!</h2><p>${killer} got you. Happy birthday anyway, Eddie! 🎂</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
+  else if(state==='dead'){state='over';ov.innerHTML=`<h2>Game over!</h2><p>${killer} got you. Happy birthday anyway, Eddie! 🎂</p><p>Score: ${score}</p><button id="go">Retry Level ${level}</button>`;go.onclick=()=>{score=levelStartScore;newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}}
   else{ov.innerHTML=`<h2>🎉 HAPPY BIRTHDAY EDDIE! 🎉</h2><p>You beat all 10 levels and ate the whole family’s dots!</p><p>Score: ${score}</p><button id="go">Play again</button>`;go.onclick=start}
 }
-function start(){ov.classList.remove('intro-screen');score=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
+function start(){ov.classList.remove('intro-screen');score=0;levelStartScore=0;lives=3;level=1;pizzaCollected=false;pizzaToast=0;hearts();newLevel();ov.style.display='none';state='ready';startMusicForLevel(level)}
 // Cinematic birthday title screen
 function setup(){
   if (typeof stopMusic === 'function') stopMusic();
